@@ -89,21 +89,6 @@ public class Sql2 {
 				.sum("roubo")
 				.filter(col("sum(roubo)").gt(0.00));
 		
-		
-		
-		/*
-		instituicoes.createOrReplaceTempView("instituicoes");
-		execucoes.createOrReplaceTempView("execucoes");
-		
-		Dataset<Row> ladroes = session.sql(
-			"SELECT i.nome, i.cnpj, SUM(e.valor_total - e.valor_contrato) AS roubo " +
-			"FROM instituicoes i NATURAL JOIN execucoes e " +
-			"WHERE e.id_instituicao <> -1 " +
-			"GROUP BY i.nome, i.cnpj " +
-			"HAVING SUM(e.valor_total - e.valor_contrato) > 0.00 "
-		).cache();
-		*/
-
 		// Saídas
 		//ladroes.show();
 		DateFormat instante = new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss_SSS");
