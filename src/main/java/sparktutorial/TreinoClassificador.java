@@ -52,30 +52,33 @@ public class TreinoClassificador {
 					.option("delimiter", ",")
 					.option("header", "true")
 					.schema(schema)
-					.load(args[0])
-					// Limpeza
-					.map(
-						r -> {
-							int tam = r.getString(1).length();
-							char[] vetor = new char[tam];
-							for (int i = 0; i < tam; i++) {
-								vetor[i] = ' ';
-								char c = r.getString(1).charAt(i);
-								if (Character.isLetter(c) || Character.isWhitespace(c))
-									vetor[i] = c;
-							}
-							String tratado = String.valueOf(vetor);
-							return RowFactory.create(r.getString(0), tratado);
-						},
-						RowEncoder.apply(schema)
-					)
-					// Labels
-					.select(
-						col("value"),
-						when(col("label").equalTo("ham"), HAM).otherwise(SPAM).as("label")
-					);
+					.load(args[0]);
 		
-		Dataset<Row>[] splits = mensagens.randomSplit(new double[]{0.9, 0.1}, 1234);
+		Dataset<Row> tratado = 
+			mensagens
+				// Limpeza
+				.map(
+					r -> {
+						int tam = r.getString(1).length();
+						char[] vetor = new char[tam];
+						for (int i = 0; i < tam; i++) {
+							vetor[i] = ' ';
+							char c = r.getString(1).charAt(i);
+							if (Character.isLetter(c) || Character.isWhitespace(c))
+								vetor[i] = c;
+						}
+						String somenteLetras = String.valueOf(vetor);
+						return RowFactory.create(r.getString(0), somenteLetras);
+					},
+					RowEncoder.apply(schema)
+				)
+				// Labels
+				.select(
+					col("value"),
+					when(col("label").equalTo("ham"), HAM).otherwise(SPAM).as("label")
+				);
+		
+		Dataset<Row>[] splits = tratado.randomSplit(new double[]{0.9, 0.1}, 1234);
 		Dataset<Row> treino = splits[0].cache();
 		Dataset<Row> teste = splits[1].cache();
 		
@@ -114,7 +117,7 @@ public class TreinoClassificador {
 		
 		// Teste
 		Dataset<Row> predicoes = modelo.transform(teste);
-		predicoes.groupBy(col("prediction")).count().show();
+		predicoes.groupBy(col("prediction"), col("label")).count().show();
 
 		// Salvando os modelos
 		File pasta = new File("data/modelo_atual");
