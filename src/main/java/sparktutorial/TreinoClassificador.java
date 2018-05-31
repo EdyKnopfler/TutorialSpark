@@ -8,16 +8,19 @@ import org.apache.spark.ml.Pipeline;
 import org.apache.spark.ml.PipelineStage;
 import org.apache.spark.ml.classification.LogisticRegression;
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator;
+import org.apache.spark.ml.feature.HashingTF;
+import org.apache.spark.ml.feature.StopWordsRemover;
 import org.apache.spark.ml.feature.Tokenizer;
-import org.apache.spark.ml.feature.Word2Vec;
 import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.ml.tuning.CrossValidator;
 import org.apache.spark.ml.tuning.CrossValidatorModel;
 import org.apache.spark.ml.tuning.ParamGridBuilder;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.SparkSession.Builder;
+import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
@@ -41,6 +44,7 @@ public class TreinoClassificador {
 			new StructField("label", DataTypes.StringType, false, Metadata.empty()),
 			new StructField("value", DataTypes.StringType, false, Metadata.empty())
 		});
+		
 		Dataset<Row> mensagens = 
 				session
 					.read()
@@ -49,10 +53,26 @@ public class TreinoClassificador {
 					.option("header", "true")
 					.schema(schema)
 					.load(args[0])
-					// Tratamento dos labels
+					// Limpeza
+					.map(
+						r -> {
+							int tam = r.getString(1).length();
+							char[] vetor = new char[tam];
+							for (int i = 0; i < tam; i++) {
+								vetor[i] = ' ';
+								char c = r.getString(1).charAt(i);
+								if (Character.isLetter(c) || Character.isWhitespace(c))
+									vetor[i] = c;
+							}
+							String tratado = String.valueOf(vetor);
+							return RowFactory.create(r.getString(0), tratado);
+						},
+						RowEncoder.apply(schema)
+					)
+					// Labels
 					.select(
-						when(col("label").equalTo("ham"), HAM).otherwise(SPAM).as("label"),
-						col("value")
+						col("value"),
+						when(col("label").equalTo("ham"), HAM).otherwise(SPAM).as("label")
 					);
 		
 		Dataset<Row>[] splits = mensagens.randomSplit(new double[]{0.9, 0.1}, 1234);
@@ -64,21 +84,21 @@ public class TreinoClassificador {
 				.setInputCol("value")
 				.setOutputCol("palavras");
 		
-		Word2Vec word2Vec = new Word2Vec()
+		StopWordsRemover remover = new StopWordsRemover()
 				  .setInputCol("palavras")
-				  .setOutputCol("features");
+				  .setOutputCol("filtradas");
+		
+		HashingTF hashingTF = new HashingTF()
+				.setInputCol("filtradas")
+				.setOutputCol("features");
 
-		LogisticRegression lr = new LogisticRegression()
-				.setMaxIter(10)
-				.setRegParam(0.3)
-				.setElasticNetParam(0.8);
+		LogisticRegression lr = new LogisticRegression();
 		
 		Pipeline pipeline = new Pipeline()
-				  .setStages(new PipelineStage[] {tokenizer, word2Vec, lr});
+				  .setStages(new PipelineStage[] {tokenizer, remover, hashingTF, lr});
 		
 		ParamMap[] paramGrid = new ParamGridBuilder()
-				  .addGrid(word2Vec.vectorSize(), new int[] {10, 20, 30})
-				  .addGrid(word2Vec.minCount(), new int[] {5, 10, 15})
+				  .addGrid(hashingTF.numFeatures(), new int[] {10, 20, 30})
 				  .addGrid(lr.regParam(), new double[] {0.01, 0.1, 0.3})
 				  .addGrid(lr.maxIter(), new int[] {50, 100, 300})
 				  .addGrid(lr.elasticNetParam(), new double[] {0.1, 0.5, 0.8})

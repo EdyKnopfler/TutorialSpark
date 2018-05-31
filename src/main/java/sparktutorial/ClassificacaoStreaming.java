@@ -35,20 +35,6 @@ public class ClassificacaoStreaming {
 				  .option("port", 9999)
 				  .load();
 		
-		/*
-		// Visualize as mensagems :)
-		StreamingQuery query = mensagens.writeStream()
-				  .format("console")
-				  .start();
-		
-		try {
-			query.awaitTermination();
-		} 
-		catch (StreamingQueryException e) {
-			System.out.println("Bye.");
-		}
-		*/
-
 		// Classificação
 		Dataset<Row> classificacoes = 
 				modelo
