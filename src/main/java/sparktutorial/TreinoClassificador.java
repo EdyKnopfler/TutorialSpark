@@ -4,12 +4,20 @@ import java.io.File;
 import java.io.IOException;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.spark.ml.classification.LogisticRegression;
 import org.apache.spark.ml.classification.RandomForestClassifier;
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator;
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
+import org.apache.spark.ml.feature.StandardScaler;
+import org.apache.spark.ml.feature.StandardScalerModel;
 import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.ml.tuning.CrossValidator;
 import org.apache.spark.ml.tuning.CrossValidatorModel;
 import org.apache.spark.ml.tuning.ParamGridBuilder;
+import org.apache.spark.ml.tuning.TrainValidationSplit;
+import org.apache.spark.ml.tuning.TrainValidationSplitModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -25,6 +33,7 @@ public class TreinoClassificador {
 		Builder builder = SparkSession.builder().appName("ClassificadorBancario");
 		if (args.length > 1 && args[1].equals("-l")) builder.master("local[*]");
 		SparkSession session = builder.getOrCreate();
+		Logger.getRootLogger().setLevel(Level.WARN);
 
 		// Dados
 		Dataset<Row> dadosClientes = session
@@ -39,28 +48,41 @@ public class TreinoClassificador {
 		Dataset<Row> dataset = dadosClientes.map(new FeatureExtractor(), 
 				RowEncoder.apply(FeatureExtractor.SCHEMA_TREINO));
 		
+		// Tratamento
+		StandardScaler escalador = new StandardScaler()
+				  .setInputCol("features")
+				  .setOutputCol("scaledFeatures")
+				  .setWithStd(true)
+				  .setWithMean(false);
+
+		StandardScalerModel escala = escalador.fit(dataset);
+		Dataset<Row> dadosEscalados = escala.transform(dataset);
+		
 		// Treinamento do classificador
-		Dataset<Row>[] splits = dataset.randomSplit(new double[]{0.8, 0.2});
+		Dataset<Row>[] splits = dadosEscalados.randomSplit(new double[]{0.8, 0.2});
 		Dataset<Row> treino = splits[0].cache();
 		Dataset<Row> teste = splits[1].cache();
 		
-		RandomForestClassifier classificador = new RandomForestClassifier()
-				.setLabelCol("label").setFeaturesCol("features");
+		LogisticRegression classificador = new LogisticRegression()
+				  .setMaxIter(10)
+				  .setRegParam(0.3)
+				  .setElasticNetParam(0.8);
 
 		ParamMap[] paramGrid = new ParamGridBuilder()
-				.addGrid(classificador.maxDepth(), new int[] {10, 15, 20, 25, 30})
-				.addGrid(classificador.maxBins(), new int[] {16, 32, 46})
+				.addGrid(classificador.maxIter(), new int[] {10, 30, 50})
+				.addGrid(classificador.regParam(), new double[] {0.01, 0.1, 0.3})
+				.addGrid(classificador.elasticNetParam(), new double[] {0.9, 0.9, 0.99})
 				.build();
 
-		MulticlassClassificationEvaluator avaliador = new MulticlassClassificationEvaluator();
+		BinaryClassificationEvaluator avaliador = new BinaryClassificationEvaluator();
 		
-		CrossValidator cv = new CrossValidator()
-				.setEstimator(classificador)
-				.setEvaluator(avaliador)
-				.setEstimatorParamMaps(paramGrid)
-				.setNumFolds(10);
+		TrainValidationSplit tvs = new TrainValidationSplit()
+				  .setEstimator(classificador)
+				  .setEvaluator(avaliador)
+				  .setEstimatorParamMaps(paramGrid)
+				  .setTrainRatio(0.8);
 		
-		CrossValidatorModel modelo = cv.fit(treino);
+		TrainValidationSplitModel modelo = tvs.fit(treino);
 		
 		// Teste
 		Dataset<Row> predicoes = modelo.transform(teste);
