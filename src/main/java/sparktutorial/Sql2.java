@@ -36,15 +36,14 @@ public class Sql2 {
 		
 		esquema = DataTypes.createStructType(campos);
 
-		Dataset<Row> instituicoes = 
-				session
-					.read()
-					.format("csv")
-					.option("delimiter", ";")
-					.option("header", "false")
-					.schema(esquema)
-					//.option("inferSchema", "true")
-					.load(args[0]);
+		Dataset<Row> instituicoes = session
+				.read()
+				.format("csv")
+				.option("delimiter", ";")
+				.option("header", "false")
+				.schema(esquema)
+				//.option("inferSchema", "true")
+				.load(args[0]);
 
 		// instituicoes.show();
 		
@@ -63,23 +62,21 @@ public class Sql2 {
 		
 		esquema = DataTypes.createStructType(campos);
 		
-		Dataset<Row> execucoes = 
-				session
-					.read()
-					.format("csv")
-					.option("delimiter", ";")
-					.option("header", "false")
-					.option("dateFormat", "dd/MM/yyyy")
-					.schema(esquema)
-					//.option("inferSchema", "true")
-					.load(args[1]);
+		Dataset<Row> execucoes = session
+				.read()
+				.format("csv")
+				.option("delimiter", ";")
+				.option("header", "false")
+				.option("dateFormat", "dd/MM/yyyy")
+				.schema(esquema)
+				//.option("inferSchema", "true")
+				.load(args[1]);
 					
 		
 		// execucoes.show();
 		
 		// SQL API
-		Dataset<Row> ladroes = 
-			execucoes
+		Dataset<Row> ladroes = execucoes
 				.select(col("id_instituicao"), 
 						col("valor_total").minus(col("valor_contrato")).as("roubo"))
 				.filter(col("id_instituicao").notEqual(-1))
