@@ -6,12 +6,8 @@ import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.spark.ml.classification.RandomForestClassificationModel;
 import org.apache.spark.ml.classification.RandomForestClassifier;
-import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator;
-import org.apache.spark.ml.param.ParamMap;
-import org.apache.spark.ml.tuning.ParamGridBuilder;
-import org.apache.spark.ml.tuning.TrainValidationSplit;
-import org.apache.spark.ml.tuning.TrainValidationSplitModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -42,30 +38,20 @@ public class TreinoClassificador {
 		double fracao = (double) nPos / nNeg;
 		
 		Dataset<Row> amostraNeg = negativos.sample(fracao);
+		Dataset<Row> sobra = negativos.except(amostraNeg);
 		
 		// Modelo para positivos
 		Dataset<Row>[] split = positivos.union(amostraNeg).randomSplit(new double[]{0.8, 0.2});
 		Dataset<Row> treino = split[0].cache();
-		Dataset<Row> teste = split[1].cache();
+		Dataset<Row> teste = split[1].union(sobra).cache();
 		
-		RandomForestClassifier classificador = new RandomForestClassifier();
+		RandomForestClassifier classificador = new RandomForestClassifier()
+				.setMaxDepth(20)
+				.setNumTrees(100)
+				.setMaxBins(100)
+				.setSubsamplingRate(0.7);
 
-		ParamMap[] paramGrid = new ParamGridBuilder()
-				.addGrid(classificador.maxDepth(), new int[] {5, 10, 15})
-				.addGrid(classificador.maxBins(), new int[] {2, 3, 4})
-				.addGrid(classificador.numTrees(), new int[] {10, 25, 50})
-				.addGrid(classificador.subsamplingRate(), new double[] {0.2, 0.5, 0.7})
-				.build();
-
-		BinaryClassificationEvaluator avaliador = new BinaryClassificationEvaluator();
-		
-		TrainValidationSplit tvs = new TrainValidationSplit()
-				  .setEstimator(classificador)
-				  .setEvaluator(avaliador)
-				  .setEstimatorParamMaps(paramGrid)
-				  .setTrainRatio(0.8);
-		
-		TrainValidationSplitModel modelo = tvs.fit(treino);
+		RandomForestClassificationModel modelo = classificador.fit(treino);
 		
 		// Teste
 		Dataset<Row> predicoes = modelo.transform(teste);
