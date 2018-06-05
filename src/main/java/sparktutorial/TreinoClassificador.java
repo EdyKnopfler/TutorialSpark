@@ -6,9 +6,6 @@ import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.spark.ml.classification.LogisticRegression;
-import org.apache.spark.ml.classification.LogisticRegressionModel;
-import org.apache.spark.ml.classification.RandomForestClassificationModel;
 import org.apache.spark.ml.classification.RandomForestClassifier;
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator;
 import org.apache.spark.ml.param.ParamMap;
@@ -21,7 +18,6 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.SparkSession.Builder;
 
 import static org.apache.spark.sql.functions.col;
-import static org.apache.spark.sql.functions.when;
 
 public class TreinoClassificador {
 	
@@ -76,7 +72,7 @@ public class TreinoClassificador {
 		predicoes.groupBy(col("prediction"), col("label")).count().show();
 
 		// Salvando os modelos
-		File pasta = new File("data/modelo_positivos");
+		File pasta = new File("data/modelo");
 		if (pasta.exists()) FileUtils.deleteDirectory(pasta);
 		modelo.save(pasta.getAbsolutePath());
 	
