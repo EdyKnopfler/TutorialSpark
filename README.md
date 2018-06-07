@@ -11,7 +11,7 @@ O parâmetro -l pode ser usado para execução local dentro do IDE, se fizer _sp
 
 ## Base de dados 
 
-Disponível para download em: https://www.youtube.com/watch?v=1PlHOysoAJ0
+Disponível para download em: http://archive.ics.uci.edu/ml/datasets/Bank+Marketing
 
 [Moro et al., 2014] S. Moro, P. Cortez and P. Rita. A Data-Driven Approach to Predict the Success of Bank Telemarketing. Decision Support Systems, In press, http://dx.doi.org/10.1016/j.dss.2014.03.001. Disponível em:
 - [pdf] http://dx.doi.org/10.1016/j.dss.2014.03.001
