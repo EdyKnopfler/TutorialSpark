@@ -74,8 +74,8 @@ public class TreinoClassificador {
 		ParamMap[] paramGrid = new ParamGridBuilder()
 				.addGrid(classificador.thresholds(), doJeitoQueODiaboGosta)
 				.addGrid(classificador.maxDepth(), new int[] {5, 10, 15})
-				.addGrid(classificador.maxBins(), new int[] {10, 20, 50, 75})
-				.addGrid(classificador.numTrees(), new int[] {15, 20, 50})
+				.addGrid(classificador.maxBins(), new int[] {5, 10, 20})
+				.addGrid(classificador.numTrees(), new int[] {5, 10, 20})
 				.build();
 
 		TrainValidationSplit validador = new TrainValidationSplit()
